@@ -18,46 +18,21 @@ requestSession.headers.update({'User-Agent': UA})
 r"""
 主页-所有画列表获取代码段
 """
-mainResponse=requests.get('http://ac.qq.com/Comic/comicInfo/id/505430')
-#print type(mainResponse.text)
-#print mainResponse.text
-
-ol=re.findall(r"""<ol class="chapter-page-all works-chapter-list">(.+?)</ol>""",mainResponse.text,re.S)
-#for i in xOl:
-#    print i
-#print xOl
-
-allTitleLink=re.findall(r"<a(.+?)>",ol[0])
-#print len(allTitleLink
-
-OPList=[{} for i in allTitleLink]
-for i in range(len(allTitleLink)):
-    title=re.findall(r"""title=(.+?)\"""",allTitleLink[i])[0]
-    #print title
-    OPList[i]['title']=re.findall(r"""title=(.+?)\"""",allTitleLink[i])[0]
-    OPList[i]['link']=re.findall(r"""href=\"(.+?)\"""",allTitleLink[i])[0]
-#for i in OPList:
-#    print i['title'],i['link']
-r"""
-一画中图片列表获取
-"""
-url='http://ac.qq.com'+OPList[1]['link']
-#url='http://m.ac.qq.com/chapter/index/id/505430/cid/1'
-comicResponse=requests.get(url)
-#print comicResponse.text
-
-base64data=re.findall(r"""var DATA(\s+)= '(.+)'""",comicResponse.text)
-#print base64data[0][1][1:]
-#print base64.b64decode(base64data[0][1][1:])
-imgList=base64.b64decode(base64data[0][1][1:])
-imgUrl=re.findall(r"""http:.+?jpg""",imgList)
-
-f=open('url.txt','w')
-for i in imgUrl:
-    #print i
-    f.write(i)
-    f.write('\n')
-f.close()
+def getContent(id):
+    url='http://ac.qq.com/Comic/comicInfo/id/{}'.format(id)
+    mainResponse=requests.get(url)
+    ol=re.findall(r"""<ol class="chapter-page-all works-chapter-list">(.+?)</ol>""",mainResponse.text,re.S)
+    allTitleLink=re.findall(r"<a(.+?)>",ol[0])
+    listTitleUrl=[{} for i in allTitleLink]
+    for i in range(len(allTitleLink)):
+        title=re.findall(r"""title=(.+?)\"""",allTitleLink[i])[0]
+        #print title
+        listTitleUrl[i]['title']=re.findall(r"""title=\"(.+?)\"""",allTitleLink[i])[0]
+        listTitleUrl[i]['link']=re.findall(r"""href=\"(.+?)\"""",allTitleLink[i])[0]
+    author=re.findall(r"""<em style=\"max-width: 168px;\">(.+?)</em>""",mainResponse.text)
+    comicName=re.findall(r"""<h2 class="works-intro-title ui-left"><strong>(.+?)</strong></h2>""",mainResponse.text)
+    comicIntrd=re.findall(r"""<p class="works-intro-short ui-text-gray9">(.+?)</p>""",mainResponse.text,re.S)
+    return comicName,comicIntrd,str(len(listTitleUrl)),listTitleUrl
 
 def __download_one_img(imgUrl,imgPath):
     print imgUrl
@@ -75,4 +50,36 @@ def __download_one_img(imgUrl,imgPath):
       except:
           print('下载失败，重试' + str(retry_num) + '次')
           sleep(2)
-__download_one_img(imgUrl[0].replace('\\/','/'),'test.jpg')
+#__download_one_img(imgUrl[0].replace('\\/','/'),'test.jpg')
+def getImgList(pageUrl):
+    print pageUrl
+    pageResponse = requestSession.get('http://ac.qq.com'+pageUrl)
+    #print pageResponse.text
+    #base64data=re.findall(r"""var DATA(\s+)= '(.+)'""",pageResponse.text)
+    base64data=re.findall(r"""data: '(.+)'""",pageResponse.text)
+    #print base64data[0]
+    imgList=base64.b64decode(base64data[0][1:])
+    #print imgList,"url":
+    imgUrl=re.findall(r"""\"url\":\"(.+?)\"""",imgList)
+    for i in range(len(imgUrl)):
+        imgUrl[i]=imgUrl[i].replace('\\/','/')
+    return imgUrl
+    
+def main(id):
+    comicName,comicIntrd,count,contentList = getContent(id)
+    contentNameList = [i['title'] for i in contentList]
+
+    #print '漫画名:',comicName[0]
+    #print '简介: ',comicIntrd[0]
+    #print('章节数: {}'.format(count))
+    #print('章节列表:')
+
+    #try:
+    #    print('\n'.join(contentNameList))
+    #except Exception:
+    #    print('章节列表包含无法解析的特殊字符\n')
+    for i in contentList:
+        imgList=getImgList(i['link'])
+        print imgList
+
+main('505430')
